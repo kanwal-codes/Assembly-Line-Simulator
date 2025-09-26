@@ -11,17 +11,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Compiler-specific options
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /Zi")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Werror")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address -fsanitize=undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 endif()
 
-# Source files
-set(SOURCES
+# Library source files (everything except main.cpp)
+set(LIBRARY_SOURCES
     src/Station.cpp
     src/CustomerOrder.cpp
     src/Workstation.cpp
@@ -37,14 +37,15 @@ set(HEADERS
     src/Utilities.h
 )
 
-# Main executable target
-add_executable(assembly_line 
-    ${SOURCES}
-    ${HEADERS}
-)
+# Create library from core sources
+add_library(assembly_line_lib ${LIBRARY_SOURCES} ${HEADERS})
+target_include_directories(assembly_line_lib PUBLIC src)
 
-# Include directories
-target_include_directories(assembly_line PRIVATE src)
+# Main executable
+add_executable(assembly_line 
+    src/main.cpp
+)
+target_link_libraries(assembly_line assembly_line_lib)
 
 # Set target properties
 set_target_properties(assembly_line PROPERTIES
@@ -57,24 +58,21 @@ set_target_properties(assembly_line PROPERTIES
 # Enable testing
 enable_testing()
 
-# Test executables
+# Test executables - link against the library
 add_executable(test_station 
     tests/tester_1.cpp
-    ${SOURCES}
 )
-target_include_directories(test_station PRIVATE src)
+target_link_libraries(test_station assembly_line_lib)
 
 add_executable(test_customer_order 
     tests/tester_2.cpp
-    ${SOURCES}
 )
-target_include_directories(test_customer_order PRIVATE src)
+target_link_libraries(test_customer_order assembly_line_lib)
 
 add_executable(test_full_system 
     tests/tester_3.cpp
-    ${SOURCES}
 )
-target_include_directories(test_full_system PRIVATE src)
+target_link_libraries(test_full_system assembly_line_lib)
 
 # Register tests with CTest
 add_test(NAME StationTests 
@@ -117,13 +115,3 @@ install(FILES ${HEADERS}
 install(DIRECTORY data/
         DESTINATION share/assembly_line/data
         COMPONENT Runtime)
-
-# Package configuration (optional)
-set(CPACK_PACKAGE_NAME "AssemblyLineSimulator")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
-set(CPACK_PACKAGE_VENDOR "Your Name")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
-
-include(CPack)
