@@ -113,6 +113,7 @@ namespace seneca
     }
 
     CustomerOrder::CustomerOrder(const CustomerOrder& customer) {
+        (void)customer;  // Suppress unused parameter warning
         throw "This is an error!";
     }
 } // namespace seneca

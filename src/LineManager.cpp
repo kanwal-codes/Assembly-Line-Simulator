@@ -28,14 +28,17 @@ namespace seneca
 
         std::vector<Workstation *> activeStations;
 
-        for (const auto &[stationName, nextStationName] : stationLinks)
+        for (const auto &link : stationLinks)
         {
+            const std::string& stationName = link.first;
+            const std::string& nextStationName = link.second;
+            
             auto current = std::find_if(stations.begin(), stations.end(),
-                                        [&stationName](Workstation *ws)
+                                        [stationName](Workstation *ws)
                                         { return ws->getItemName() == stationName; });
 
             auto next = std::find_if(stations.begin(), stations.end(),
-                                     [&nextStationName](Workstation *ws)
+                                     [nextStationName](Workstation *ws)
                                      { return ws->getItemName() == nextStationName; });
 
             if (current != stations.end())
