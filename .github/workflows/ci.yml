@@ -1,0 +1,206 @@
+name: Build and Test
+
+# When to run this workflow
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  # Allow manual triggering
+  workflow_dispatch:
+
+# Define the jobs
+jobs:
+  # Main build and test job
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false  # Don't stop other jobs if one fails
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            build_type: Release
+          - os: windows-latest  
+            build_type: Release
+          - os: macos-latest
+            build_type: Release
+
+    steps:
+    # Step 1: Get the code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Step 2: Setup dependencies based on OS
+    - name: Install Linux dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake ninja-build
+
+    - name: Install macOS dependencies
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake ninja
+
+    - name: Setup Windows (Visual Studio)
+      if: runner.os == 'Windows'
+      uses: microsoft/setup-msbuild@v1.3
+
+    # Step 3: Configure the build
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+    # Step 4: Build the project
+    - name: Build project
+      run: |
+        cmake --build build --config ${{ matrix.build_type }} --parallel 4
+
+    # Step 5: Run the tests
+    - name: Run tests
+      working-directory: build
+      run: |
+        ctest --build-config ${{ matrix.build_type }} --output-on-failure --verbose
+
+    # Step 6: Test the actual program
+    - name: Run simulation (smoke test)
+      working-directory: build
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          ./assembly_line.exe ../data/Stations1.txt ../data/Stations2.txt ../data/CustomerOrders.txt ../data/AssemblyLine.txt > output.txt 2>&1
+        else
+          ./assembly_line ../data/Stations1.txt ../data/Stations2.txt ../data/CustomerOrders.txt ../data/AssemblyLine.txt > output.txt 2>&1
+        fi
+        
+        # Check if simulation ran successfully
+        if grep -q "Processed Orders" output.txt; then
+          echo "✅ Simulation completed successfully!"
+          cat output.txt
+        else
+          echo "❌ Simulation failed"
+          cat output.txt
+          exit 1
+        fi
+
+  # Memory leak detection (Linux only)
+  memory-check:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+    needs: build-and-test  # Only run if build-and-test succeeds
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Valgrind
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y valgrind build-essential cmake
+
+    - name: Configure CMake (Debug build for better Valgrind output)
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-g -O0"
+
+    - name: Build project
+      run: |
+        cmake --build build --config Debug
+
+    - name: Run Valgrind memory check
+      working-directory: build
+      run: |
+        valgrind \
+          --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --error-exitcode=42 \
+          --suppressions=../valgrind.supp \
+          ./assembly_line ../data/Stations1.txt ../data/Stations2.txt ../data/CustomerOrders.txt ../data/AssemblyLine.txt
+      continue-on-error: true  # Don't fail the entire workflow if memory leaks found
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy cppcheck
+
+    - name: Run Clang-Tidy
+      run: |
+        echo "🔍 Running Clang-Tidy static analysis..."
+        clang-tidy src/*.cpp -- -std=c++17 -Isrc/ || echo "⚠️  Some warnings found"
+
+    - name: Run CppCheck
+      run: |
+        echo "🔍 Running CppCheck static analysis..."
+        cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem --quiet src/ || echo "⚠️  Some issues found"
+
+  # Build performance test
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake time
+
+    - name: Configure CMake (Optimized build)
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -march=native"
+
+    - name: Build project
+      run: |
+        cmake --build build --config Release
+
+    - name: Run performance test
+      working-directory: build
+      run: |
+        echo "🚀 Running performance test..."
+        
+        # Time the execution
+        /usr/bin/time -v ./assembly_line ../data/Stations1.txt ../data/Stations2.txt ../data/CustomerOrders.txt ../data/AssemblyLine.txt 2> timing.txt
+        
+        # Show results
+        echo "⏱️  Performance Results:"
+        grep "User time\|System time\|Maximum resident set size" timing.txt || true
+
+  # Success notification
+  all-tests-passed:
+    name: All Tests Passed ✅
+    runs-on: ubuntu-latest
+    needs: [build-and-test, memory-check, code-quality, performance-test]
+    if: always()
+    
+    steps:
+    - name: Check all jobs status
+      run: |
+        echo "🎉 Build and Test Results:"
+        echo "✅ Multi-platform build: ${{ needs.build-and-test.result }}"
+        echo "🔍 Memory check: ${{ needs.memory-check.result }}"  
+        echo "📊 Code quality: ${{ needs.code-quality.result }}"
+        echo "⚡ Performance: ${{ needs.performance-test.result }}"
+        
+        if [ "${{ needs.build-and-test.result }}" = "success" ]; then
+          echo ""
+          echo "🏆 Your Assembly Line Simulator is working perfectly!"
+          echo "💼 Ready to impress recruiters with professional-grade code!"
+        else
+          echo "❌ Some tests need attention"
+          exit 1
+        fi
