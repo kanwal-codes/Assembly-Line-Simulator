@@ -118,7 +118,7 @@ function Dashboard() {
       return
     }
 
-    let refreshTimeout: NodeJS.Timeout | null = null
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null
 
     try {
       setSimulationRunning(true)
