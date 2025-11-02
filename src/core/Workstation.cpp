@@ -1,4 +1,4 @@
-#include "Workstation.h"
+#include "seneca/Workstation.h"
 
 namespace seneca
 {

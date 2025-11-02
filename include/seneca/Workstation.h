@@ -3,8 +3,8 @@
 
 #include <iostream>
 #include <deque>
-#include "CustomerOrder.h"
-#include "Station.h"
+#include "seneca/CustomerOrder.h"
+#include "seneca/Station.h"
 
 namespace seneca
 {

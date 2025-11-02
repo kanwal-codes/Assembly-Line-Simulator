@@ -7,17 +7,35 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -Wpedantic
 DEBUGFLAGS = -g -O0 -DDEBUG -fsanitize=address -fsanitize=undefined
 RELEASEFLAGS = -O3 -DNDEBUG
 
+# Libraries
+LIBS = -lsqlite3
+
 # Directories
 SRCDIR = src
+COREDIR = $(SRCDIR)/core
+INFRADIR = $(SRCDIR)/infrastructure
+INCLUDEDIR = include
 TESTDIR = tests
 DATADIR = data
 BUILDDIR = build
 OBJDIR = $(BUILDDIR)/obj
 
-# Source files
-SOURCES = $(wildcard $(SRCDIR)/*.cpp)
-OBJECTS = $(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
-HEADERS = $(wildcard $(SRCDIR)/*.h)
+# Source files (organized by module)
+CORE_SOURCES = $(COREDIR)/Station.cpp \
+               $(COREDIR)/Workstation.cpp \
+               $(COREDIR)/CustomerOrder.cpp \
+               $(COREDIR)/LineManager.cpp \
+               $(COREDIR)/Utilities.cpp
+
+INFRA_SOURCES = $(INFRADIR)/Logger.cpp \
+                $(INFRADIR)/Config.cpp \
+                $(INFRADIR)/Database.cpp
+
+SOURCES = $(CORE_SOURCES) $(INFRA_SOURCES) $(SRCDIR)/main.cpp
+OBJECTS = $(patsubst $(COREDIR)/%.cpp,$(OBJDIR)/core_%.o,$(CORE_SOURCES)) \
+          $(patsubst $(INFRADIR)/%.cpp,$(OBJDIR)/infra_%.o,$(INFRA_SOURCES)) \
+          $(OBJDIR)/main.o
+HEADERS = $(wildcard $(INCLUDEDIR)/seneca/*.h)
 
 # Test files
 TEST_SOURCES = $(wildcard $(TESTDIR)/*.cpp)
@@ -49,7 +67,7 @@ release: $(BUILDDIR) $(OBJDIR) $(RELEASE_TARGET)
 
 $(RELEASE_TARGET): $(OBJECTS)
 	@echo "Linking release build..."
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 	@echo "Release build complete: $@"
 
 # Debug build  
@@ -58,32 +76,40 @@ debug: $(BUILDDIR) $(OBJDIR) $(DEBUG_TARGET)
 
 $(DEBUG_TARGET): $(OBJECTS)
 	@echo "Linking debug build..."
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 	@echo "Debug build complete: $@"
 
 # Object file compilation
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(HEADERS) | $(OBJDIR)
+$(OBJDIR)/core_%.o: $(COREDIR)/%.cpp $(HEADERS) | $(OBJDIR)
 	@echo "Compiling $<..."
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I$(INCLUDEDIR) -c $< -o $@
+
+$(OBJDIR)/infra_%.o: $(INFRADIR)/%.cpp $(HEADERS) | $(OBJDIR)
+	@echo "Compiling $<..."
+	$(CXX) $(CXXFLAGS) -I$(INCLUDEDIR) -c $< -o $@
+
+$(OBJDIR)/main.o: $(SRCDIR)/main.cpp $(HEADERS) | $(OBJDIR)
+	@echo "Compiling $<..."
+	$(CXX) $(CXXFLAGS) -I$(INCLUDEDIR) -c $< -o $@
 
 # Test targets
 test: test1 test2 test3
 
 test1: $(BUILDDIR) $(OBJDIR)
 	@echo "Building test 1 (Station and Utilities)..."
-	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test1 $(TESTDIR)/tester_1.cpp $(SOURCES) -I$(SRCDIR)
+	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test1 $(TESTDIR)/tester_1.cpp $(SOURCES) -I$(INCLUDEDIR)
 	@echo "Running test 1..."
 	cd $(BUILDDIR) && ./test1 ../$(DATADIR)/Stations1.txt ../$(DATADIR)/Stations2.txt
 
 test2: $(BUILDDIR) $(OBJDIR)
 	@echo "Building test 2 (CustomerOrder)..."
-	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test2 $(TESTDIR)/tester_2.cpp $(SOURCES) -I$(SRCDIR)
+	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test2 $(TESTDIR)/tester_2.cpp $(SOURCES) -I$(INCLUDEDIR)
 	@echo "Running test 2..."
 	cd $(BUILDDIR) && ./test2 ../$(DATADIR)/Stations1.txt ../$(DATADIR)/Stations2.txt ../$(DATADIR)/CustomerOrders.txt
 
 test3: $(BUILDDIR) $(OBJDIR)
 	@echo "Building test 3 (Full System)..."
-	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test3 $(TESTDIR)/tester_3.cpp $(SOURCES) -I$(SRCDIR)
+	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o $(BUILDDIR)/test3 $(TESTDIR)/tester_3.cpp $(SOURCES) -I$(INCLUDEDIR)
 	@echo "Running test 3..."
 	cd $(BUILDDIR) && ./test3 ../$(DATADIR)/Stations1.txt ../$(DATADIR)/Stations2.txt ../$(DATADIR)/CustomerOrders.txt ../$(DATADIR)/AssemblyLine.txt
 

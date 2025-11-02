@@ -3,6 +3,8 @@ Assembly Line Simulator
 ## Overview
 This repository hosts a comprehensive C++ project developed during an advanced Object-Oriented Programming course. The project simulates an assembly line, highlighting intricate OOP concepts and demonstrating proficiency in C++ programming.
 
+**🚀 Enhanced Version**: This project has been expanded with professional features including logging, configuration management, custom exception handling, and a complete main executable. See `IMPLEMENTATION_STATUS.md` for current features and `EXPANSION_PLAN.md` for future enhancements.
+
 ## Project Description
 The simulation models a manufacturing assembly line where customer orders are processed sequentially through various workstations. Each workstation in the assembly line is responsible for adding a specific component to an order, mimicking real-world factory production lines.
 
@@ -37,3 +39,38 @@ The simulation orchestrates the processing of customer orders through a series o
    - Orchestrates the entire assembly line, linking workstations and managing the flow of orders.
    - Key Functions:
      - `run`: Executes one cycle of the line, processing and moving orders through workstations.
+
+## New Features (Enhanced Version)
+
+### Logger System
+- Thread-safe singleton logger
+- Multiple log levels (DEBUG, INFO, WARN, ERROR)
+- Console and file output support
+- Timestamped entries
+- Configurable via config file
+
+### Configuration Management
+- Key-value configuration file parser
+- Support for strings, integers, booleans, doubles
+- Default value support
+- Configuration validation
+
+### Exception Handling
+- Hierarchical exception structure
+- Specialized exceptions for different error types
+- Better error messages and debugging
+
+## Building
+
+```bash
+# Build release version
+make release
+
+# Run the simulation
+./build/assembly_line data/Stations1.txt data/Stations2.txt data/CustomerOrders.txt data/AssemblyLine.txt
+
+# Run tests
+make test3
+```
+
+See `docs/guides/QUICK_START.md` for detailed instructions and `docs/planning/EXPANSION_PLAN.md` for future enhancements.

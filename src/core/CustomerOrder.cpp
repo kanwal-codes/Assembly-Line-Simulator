@@ -1,4 +1,4 @@
-#include "CustomerOrder.h"
+#include "seneca/CustomerOrder.h"
 
 namespace seneca
 {
@@ -115,5 +115,15 @@ namespace seneca
     CustomerOrder::CustomerOrder(const CustomerOrder& customer) {
         (void)customer;  // Suppress unused parameter warning
         throw "This is an error!";
+    }
+
+    size_t CustomerOrder::getFilledItemCount() const {
+        size_t filled = 0;
+        for (size_t i = 0; i < m_cntItem; i++) {
+            if (m_lstItem[i]->m_isFilled) {
+                filled++;
+            }
+        }
+        return filled;
     }
 } // namespace seneca

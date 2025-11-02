@@ -6,8 +6,8 @@
 #include <string>
 #include <fstream>
 #include <algorithm>
-#include "Workstation.h"
-#include "Utilities.h"
+#include "seneca/Workstation.h"
+#include "seneca/Utilities.h"
 
 namespace seneca
 {

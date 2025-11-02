@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <iomanip>
-#include "Utilities.h"
+#include "seneca/Utilities.h"
 
 namespace seneca
 {

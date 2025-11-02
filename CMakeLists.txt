@@ -20,26 +20,45 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 endif()
 
-# Library source files (everything except main.cpp)
+# Library source files (core and infrastructure, excluding main.cpp)
+set(CORE_SOURCES
+    src/core/Station.cpp
+    src/core/CustomerOrder.cpp
+    src/core/Workstation.cpp
+    src/core/LineManager.cpp
+    src/core/Utilities.cpp
+)
+
+set(INFRA_SOURCES
+    src/infrastructure/Logger.cpp
+    src/infrastructure/Config.cpp
+    src/infrastructure/Database.cpp
+)
+
 set(LIBRARY_SOURCES
-    src/Station.cpp
-    src/CustomerOrder.cpp
-    src/Workstation.cpp
-    src/LineManager.cpp
-    src/Utilities.cpp
+    ${CORE_SOURCES}
+    ${INFRA_SOURCES}
 )
 
 set(HEADERS
-    src/Station.h
-    src/CustomerOrder.h
-    src/Workstation.h
-    src/LineManager.h
-    src/Utilities.h
+    include/seneca/Station.h
+    include/seneca/CustomerOrder.h
+    include/seneca/Workstation.h
+    include/seneca/LineManager.h
+    include/seneca/Utilities.h
+    include/seneca/Logger.h
+    include/seneca/Config.h
+    include/seneca/Database.h
+    include/seneca/Exceptions.h
 )
+
+# Find SQLite3
+find_library(SQLITE3_LIB sqlite3)
 
 # Create library from core sources
 add_library(assembly_line_lib ${LIBRARY_SOURCES} ${HEADERS})
-target_include_directories(assembly_line_lib PUBLIC src)
+target_include_directories(assembly_line_lib PUBLIC include)
+target_link_libraries(assembly_line_lib ${SQLITE3_LIB})
 
 # Main executable
 add_executable(assembly_line 

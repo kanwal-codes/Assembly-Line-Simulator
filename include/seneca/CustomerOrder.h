@@ -2,8 +2,8 @@
 #define SENECA_CUSTOMERORDER_H
 #include <iostream>
 #include <vector>
-#include "Utilities.h"
-#include "Station.h"
+#include "seneca/Utilities.h"
+#include "seneca/Station.h"
 
 namespace seneca
 {
@@ -34,6 +34,12 @@ namespace seneca
             bool isItemFilled(const std::string& itemName) const;
             void fillItem(Station& station, std::ostream& os);
             void display(std::ostream& os) const;
+            
+            // Getters for database integration
+            const std::string& getCustomerName() const { return m_name; }
+            const std::string& getProduct() const { return m_product; }
+            size_t getItemCount() const { return m_cntItem; }
+            size_t getFilledItemCount() const;
     };
 } // namespace seneca
 

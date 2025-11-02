@@ -1,0 +1,33 @@
+# Assembly Line Simulator Configuration
+# Format: key=value
+# Lines starting with # or ; are comments
+
+# Logging Configuration
+log_level=INFO
+log_file=assembly_line.log
+log_console=true
+log_file_enabled=false
+
+# Simulation Configuration
+simulation_speed=1.0
+max_iterations=1000
+enable_verbose=false
+
+# Data File Paths
+stations_file_1=data/Stations1.txt
+stations_file_2=data/Stations2.txt
+customer_orders_file=data/CustomerOrders.txt
+assembly_line_file=data/AssemblyLine.txt
+
+# Performance
+enable_multithreading=false
+thread_count=4
+
+# Output
+output_format=text
+enable_statistics=true
+
+# Database
+database_path=database/assembly_line.db
+enable_database=true
+

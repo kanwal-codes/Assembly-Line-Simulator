@@ -2,16 +2,16 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include "Station.h"
-#include "Station.h"           // intentional
-#include "Workstation.h"
-#include "Workstation.h"       // intentional
-#include "CustomerOrder.h"
-#include "CustomerOrder.h"     // intentional
-#include "Utilities.h"
-#include "Utilities.h"         // intentional
-#include "LineManager.h"
-#include "LineManager.h"       // intentional
+#include "seneca/Station.h"
+#include "seneca/Station.h"           // intentional
+#include "seneca/Workstation.h"
+#include "seneca/Workstation.h"       // intentional
+#include "seneca/CustomerOrder.h"
+#include "seneca/CustomerOrder.h"     // intentional
+#include "seneca/Utilities.h"
+#include "seneca/Utilities.h"         // intentional
+#include "seneca/LineManager.h"
+#include "seneca/LineManager.h"       // intentional
 
 // Cheching if header guards exist and follow convention.
 #ifndef SENECA_STATION_H

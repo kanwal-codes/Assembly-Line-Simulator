@@ -1,57 +1,13 @@
-# Compiled Object files
-*.slo
-*.lo
+# Build artifacts
+build/
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
+*.a
 *.so
 *.dylib
-*.dll
 
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-main
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Visual Studio files
-*.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
-*.sln
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# Build directories
-build/
-Build/
-Debug/
-Release/
-x64/
-x86/
+# Logs
+logs/
+*.log
 
 # IDE files
 .vscode/
@@ -60,15 +16,43 @@ x86/
 *.swo
 *~
 
-# OS generated files
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Temporary files
-*.tmp
-*.temp
+# Test outputs
+test_output/
+*.test
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+env/
+*.egg-info/
+dist/
+
+# Node modules (for frontend)
+node_modules/
+package-lock.json
+yarn.lock
+.pnpm-debug.log
+
+# Frontend build
+frontend/dist/
+frontend/.vite/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake

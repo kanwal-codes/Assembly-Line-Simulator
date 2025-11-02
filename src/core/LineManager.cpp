@@ -1,14 +1,18 @@
-#include "LineManager.h"
+#include "seneca/LineManager.h"
+#include "seneca/Logger.h"
+#include "seneca/Exceptions.h"
 
 namespace seneca
 {
     LineManager::LineManager(const std::string &file, const std::vector<Workstation *> &stations)
         : m_cntCustomerOrder(0), m_firstStation(nullptr)
     {
+        LOG_INFO("Initializing LineManager with file: " + file);
         std::ifstream inputFile(file);
         if (!inputFile)
         {
-            throw std::runtime_error("Error: file " + file + " not found");
+            LOG_ERROR("Assembly line configuration file not found: " + file);
+            throw FileException("Assembly line configuration file not found: " + file);
         }
 
         std::string record;
@@ -65,6 +69,13 @@ namespace seneca
 
         m_activeLine = activeStations;
         m_cntCustomerOrder = g_pending.size();
+        
+        LOG_INFO("LineManager initialized with " + std::to_string(m_activeLine.size()) + " stations");
+        LOG_INFO("Pending orders: " + std::to_string(m_cntCustomerOrder));
+        if (m_firstStation)
+        {
+            LOG_INFO("First station: " + m_firstStation->getItemName());
+        }
     }
 
     void LineManager::reorderStations()
@@ -84,7 +95,9 @@ namespace seneca
     bool LineManager::run(std::ostream &os)
     {
         static size_t iterationCount = 0;
-        os << "Line Manager Iteration: " << ++iterationCount << std::endl;
+        iterationCount++;
+        LOG_DEBUG("Running iteration " + std::to_string(iterationCount));
+        os << "Line Manager Iteration: " << iterationCount << std::endl;
 
         if (!g_pending.empty())
         {
@@ -100,7 +113,14 @@ namespace seneca
                       [](Workstation *ws)
                       { ws->attemptToMoveOrder(); });
 
-        return (g_completed.size() + g_incomplete.size() == m_cntCustomerOrder);
+        bool allProcessed = (g_completed.size() + g_incomplete.size() == m_cntCustomerOrder);
+        if (allProcessed)
+        {
+            LOG_INFO("All orders processed. Completed: " + std::to_string(g_completed.size()) + 
+                     ", Incomplete: " + std::to_string(g_incomplete.size()));
+        }
+        
+        return allProcessed;
     }
 
     void LineManager::display(std::ostream &os) const
