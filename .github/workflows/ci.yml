@@ -38,21 +38,40 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake ninja-build
+        sudo apt-get install -y build-essential cmake ninja-build libsqlite3-dev
 
     - name: Install macOS dependencies
       if: runner.os == 'macOS'
       run: |
-        brew install cmake ninja
+        brew install cmake ninja sqlite
 
     - name: Setup Windows (Visual Studio)
       if: runner.os == 'Windows'
       uses: microsoft/setup-msbuild@v1.3
 
+    - name: Install SQLite3 on Windows via vcpkg
+      if: runner.os == 'Windows'
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgGitCommit: '2024.01.12'
+        vcpkgJsonGlob: '[]'
+        vcpkgTriplet: 'x64-windows'
+        vcpkgArguments: 'sqlite3'
+        setupOnly: false
+      env:
+        VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
+
     # Step 3: Configure the build
     - name: Configure CMake
+      if: runner.os != 'Windows'
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+    - name: Configure CMake (Windows with vcpkg)
+      if: runner.os == 'Windows'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
 
     # Step 4: Build the project
     - name: Build project

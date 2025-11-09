@@ -52,13 +52,88 @@ set(HEADERS
     include/seneca/Exceptions.h
 )
 
-# Find SQLite3
-find_library(SQLITE3_LIB sqlite3)
+# Find SQLite3 - try multiple methods for cross-platform support
+# First, try vcpkg (common on Windows CI)
+if(DEFINED ENV{VCPKG_ROOT} AND EXISTS "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+endif()
+
+# Try find_package first (works with vcpkg and system packages)
+find_package(SQLite3 QUIET)
+
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SQLITE3 QUIET sqlite3)
+endif()
+
+if(NOT SQLite3_FOUND AND NOT SQLITE3_FOUND)
+    # Try find_library for Unix-like systems
+    find_library(SQLITE3_LIB 
+        NAMES sqlite3 libsqlite3
+        PATHS 
+            /usr/lib
+            /usr/local/lib
+            /opt/homebrew/lib
+            ${CMAKE_SYSTEM_LIBRARY_PATH}
+    )
+    
+    # For Windows, try common locations and environment variables
+    if(WIN32 AND NOT SQLITE3_LIB)
+        # Check for SQLITE3_ROOT environment variable (set by CI)
+        if(DEFINED ENV{SQLITE3_ROOT})
+            set(SQLITE3_ROOT $ENV{SQLITE3_ROOT})
+            find_library(SQLITE3_LIB 
+                NAMES sqlite3 sqlite
+                PATHS
+                    ${SQLITE3_ROOT}
+                    "${SQLITE3_ROOT}/lib"
+                    "C:/Program Files/sqlite"
+                    "C:/sqlite"
+                    ${CMAKE_SYSTEM_LIBRARY_PATH}
+            )
+        else()
+            find_library(SQLITE3_LIB 
+                NAMES sqlite3 sqlite
+                PATHS
+                    "C:/Program Files/sqlite"
+                    "C:/sqlite"
+                    ${CMAKE_SYSTEM_LIBRARY_PATH}
+            )
+        endif()
+    endif()
+    
+    # If still not found, set to library name (linker will try to find it)
+    if(NOT SQLITE3_LIB OR SQLITE3_LIB STREQUAL "SQLITE3_LIB-NOTFOUND")
+        # Always set to a valid value - use library name
+        set(SQLITE3_LIB "sqlite3")
+        if(MSVC)
+            message(STATUS "SQLite3 library not found via find_library, will try linking with 'sqlite3'. Ensure SQLite3 is installed or available in library path.")
+        else()
+            message(STATUS "SQLite3 library not found via find_library, will try linking with 'sqlite3'")
+        endif()
+    endif()
+endif()
 
 # Create library from core sources
 add_library(assembly_line_lib ${LIBRARY_SOURCES} ${HEADERS})
 target_include_directories(assembly_line_lib PUBLIC include)
-target_link_libraries(assembly_line_lib ${SQLITE3_LIB})
+
+# Link SQLite3 - handle find_package, pkg-config, and find_library results
+if(SQLite3_FOUND)
+    # Found via find_package (vcpkg or system)
+    target_link_libraries(assembly_line_lib SQLite3::SQLite3)
+elseif(SQLITE3_FOUND)
+    # Found via pkg-config
+    target_link_libraries(assembly_line_lib ${SQLITE3_LIBRARIES})
+    target_include_directories(assembly_line_lib PUBLIC ${SQLITE3_INCLUDE_DIRS})
+else()
+    # Use find_library result or fallback to library name
+    # Ensure SQLITE3_LIB is set (should be set above, but double-check)
+    if(NOT SQLITE3_LIB OR SQLITE3_LIB STREQUAL "SQLITE3_LIB-NOTFOUND")
+        set(SQLITE3_LIB "sqlite3")
+    endif()
+    target_link_libraries(assembly_line_lib ${SQLITE3_LIB})
+endif()
 
 # Main executable
 add_executable(assembly_line 
