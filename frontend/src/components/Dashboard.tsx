@@ -1,8 +1,65 @@
+/**
+ * @file Dashboard.tsx
+ * @brief Main dashboard component - Home page of the application
+ * 
+ * PURPOSE:
+ * This is the primary page users see when they visit the application. It displays
+ * overall statistics, provides a button to run simulations, and shows real-time
+ * updates via WebSocket or HTTP polling.
+ * 
+ * ARCHITECTURE:
+ * ┌─────────────────────────────────────────┐
+ * │         Dashboard Component              │
+ * │  ┌───────────────────────────────────┐  │
+ * │  │  Run Simulation Button            │  │
+ * │  └───────────────────────────────────┘  │
+ * │  ┌───────────────────────────────────┐  │
+ * │  │  Statistics Cards                │  │
+ * │  │  - Total Orders                   │  │
+ * │  │  - Completed Orders               │  │
+ * │  │  - Incomplete Orders              │  │
+ * │  │  - Completion Rate                │  │
+ * │  └───────────────────────────────────┘  │
+ * │  ┌───────────────────────────────────┐  │
+ * │  │  Order Overview Chart              │  │
+ * │  └───────────────────────────────────┘  │
+ * └─────────────────────────────────────────┘
+ * 
+ * FLOW:
+ * 1. Component mounts → Fetches initial stats from API
+ * 2. Establishes WebSocket connection for real-time updates
+ * 3. User clicks "Run Simulation" → POST /simulation/run
+ * 4. C++ simulation runs → Database updated
+ * 5. Dashboard refreshes stats → Shows new data
+ * 
+ * CONNECTIONS:
+ * - API: GET /stats (fetch statistics), POST /simulation/run (trigger simulation)
+ * - WebSocket: ws://host/ws (real-time updates, optional)
+ * - State: Manages stats, loading, error states
+ * - Re-rendering: Uses key props and timestamps to force updates
+ * 
+ * TRIGGERS:
+ * - Component mount: Fetches stats and connects WebSocket
+ * - "Run Simulation" button: Triggers C++ simulation via API
+ * - WebSocket messages: Updates stats in real-time
+ * - Manual refresh: fetchStats() can be called to refresh data
+ * 
+ * KEY FEATURES:
+ * - Real-time updates via WebSocket (falls back to polling)
+ * - Simulation button with loading state
+ * - Retry logic for fetching stats after simulation
+ * - Force re-render mechanism to ensure UI updates
+ */
+
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import '../App.css'
 
+/**
+ * Statistics data structure matching API response
+ * This interface ensures type safety when working with API data
+ */
 interface Stats {
   total_orders: number
   completed_orders: number
@@ -11,18 +68,100 @@ interface Stats {
   most_active_station: string | null
 }
 
+/**
+ * API URL configuration
+ * - Production: Set via VITE_API_URL environment variable (Vercel)
+ * - Development: Defaults to localhost:8000
+ * - Vite replaces import.meta.env.VITE_API_URL at build time
+ */
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+/**
+ * Dashboard component - Main page of the application
+ * 
+ * This component:
+ * - Displays overall simulation statistics
+ * - Provides button to run new simulations
+ * - Shows real-time updates via WebSocket
+ * - Displays charts and visualizations
+ */
 function Dashboard() {
+  // ====================================================================
+  // State Management
+  // ====================================================================
+  
+  /**
+   * Statistics data from API
+   * - Initially null (loading state)
+   * - Updated when API returns data
+   * - Used to render all statistics cards and charts
+   */
   const [stats, setStats] = useState<Stats | null>(null)
+  
+  /**
+   * Loading state
+   * - true: Shows "Loading..." message
+   * - false: Shows dashboard content
+   * - Set to true when fetching data or running simulation
+   */
   const [loading, setLoading] = useState(true)
+  
+  /**
+   * Error state
+   * - null: No error
+   * - string: Error message to display
+   * - Set when API calls fail
+   */
   const [error, setError] = useState<string | null>(null)
+  
+  /**
+   * WebSocket connection status
+   * - true: WebSocket connected, receiving real-time updates
+   * - false: WebSocket disconnected, using HTTP polling
+   * - Displayed to user with visual indicator
+   */
   const [wsConnected, setWsConnected] = useState(false)
+  
+  /**
+   * Simulation running state
+   * - Prevents multiple concurrent simulation runs
+   * - Disables button while simulation is running
+   * - Shows progress message to user
+   */
   const [simulationRunning, setSimulationRunning] = useState(false)
-  const [statsUpdateTime, setStatsUpdateTime] = useState(Date.now()) // Force re-render trigger
+  
+  /**
+   * Stats update timestamp
+   * - Used as key prop to force React re-renders
+   * - Updated whenever stats change
+   * - Ensures UI updates even if data reference doesn't change
+   */
+  const [statsUpdateTime, setStatsUpdateTime] = useState(Date.now())
 
+  // ====================================================================
+  // Effect: Initial Load and WebSocket Setup
+  // ====================================================================
+  /**
+   * This effect runs once when component mounts
+   * 
+   * WHAT IT DOES:
+   * 1. Fetches initial statistics from API
+   * 2. Establishes WebSocket connection for real-time updates
+   * 3. Sets up WebSocket event handlers
+   * 4. Cleans up WebSocket on component unmount
+   * 
+   * TRIGGERS:
+   * - Component mount: Runs once when Dashboard is first rendered
+   * - Component unmount: Cleanup function closes WebSocket
+   * 
+   * CONNECTIONS:
+   * - API: GET /stats endpoint for initial data
+   * - WebSocket: ws://host/ws for real-time updates
+   * - State: Updates stats, loading, wsConnected states
+   */
   useEffect(() => {
     // Initial load with loading state
+    // Fetches statistics immediately when component mounts
     const initialLoad = async () => {
       setLoading(true)
       try {
@@ -36,11 +175,25 @@ function Dashboard() {
     
     initialLoad()
     
-    // WebSocket connection for real-time updates
+    // ====================================================================
+    // WebSocket Connection Setup
+    // ====================================================================
+    // PURPOSE: Establish persistent connection for real-time updates
+    // 
+    // HOW IT WORKS:
+    // 1. Convert HTTP URL to WebSocket URL (http->ws, https->wss)
+    // 2. Create WebSocket connection
+    // 3. Set up event handlers for messages, errors, close
+    // 4. Update stats when messages received
+    // 
+    // FALLBACK:
+    // - If WebSocket fails, component continues with HTTP polling
+    // - fetchStats() can be called periodically as fallback
     let ws: WebSocket | null = null
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
       // Convert http/https to ws/wss for WebSocket
+      // This is necessary because WebSocket uses different protocol
       const wsUrl = apiUrl.replace(/^http/, 'ws').replace(/^https/, 'wss')
       ws = new WebSocket(`${wsUrl}/ws`)
       
@@ -89,21 +242,51 @@ function Dashboard() {
     }
   }, [])
 
+  // ====================================================================
+  // Function: Fetch Statistics
+  // ====================================================================
+  /**
+   * Fetches statistics from the API
+   * 
+   * PURPOSE:
+   * Retrieves current simulation statistics from the backend API.
+   * This is the primary way to get data when WebSocket is not available.
+   * 
+   * HOW IT WORKS:
+   * 1. Makes GET request to /stats endpoint
+   * 2. Uses cache busting parameter to prevent browser caching
+   * 3. Updates state with new data
+   * 4. Triggers re-render with timestamp
+   * 
+   * TRIGGERS:
+   * - Initial component load
+   * - After simulation completes (with retry logic)
+   * - Can be called manually to refresh data
+   * 
+   * CONNECTIONS:
+   * - API: GET /stats endpoint
+   * - State: Updates stats, error, statsUpdateTime
+   * - UI: Causes re-render of statistics cards and charts
+   * 
+   * @returns Promise<Stats> The fetched statistics data
+   * @throws Error if API call fails
+   */
   const fetchStats = async () => {
     try {
       const response = await axios.get(`${API_URL}/stats`, {
-        params: { _: Date.now() } // Cache busting
+        params: { _: Date.now() } // Cache busting - ensures fresh data
       })
       console.log('Stats fetched:', response.data)
       
       // Force state update with new object reference
+      // This ensures React detects the change and re-renders
       const newStats = {
         ...response.data,
-        _timestamp: Date.now()
+        _timestamp: Date.now()  // Add timestamp for tracking
       }
       console.log('Setting new stats:', newStats)
       setStats(newStats)
-      setStatsUpdateTime(Date.now()) // Trigger re-render
+      setStatsUpdateTime(Date.now()) // Trigger re-render by updating timestamp
       setError(null)
       return newStats
     } catch (err: any) {
@@ -113,8 +296,47 @@ function Dashboard() {
     }
   }
 
+  // ====================================================================
+  // Function: Run Simulation
+  // ====================================================================
+  /**
+   * Triggers a new simulation run
+   * 
+   * PURPOSE:
+   * When user clicks "Run Simulation" button, this function:
+   * 1. Calls API endpoint POST /simulation/run
+   * 2. API executes C++ simulation program
+   * 3. C++ program processes orders and saves to database
+   * 4. Dashboard refreshes statistics to show new data
+   * 
+   * FLOW:
+   * 1. Check if simulation already running (prevent duplicates)
+   * 2. Set loading state and disable button
+   * 3. POST request to /simulation/run endpoint
+   * 4. Wait for simulation to complete
+   * 5. Wait for database writes to finish
+   * 6. Fetch updated statistics with retry logic
+   * 7. Update UI with new data
+   * 8. Show success message to user
+   * 
+   * RETRY LOGIC:
+   * - Fetches stats multiple times after simulation
+   * - Accounts for potential database write delays
+   * - Ensures UI shows latest data
+   * 
+   * TRIGGERS:
+   * - User clicks "Run Simulation" button
+   * - Button is disabled while simulation runs
+   * 
+   * CONNECTIONS:
+   * - API: POST /simulation/run (triggers C++ executable)
+   * - API: GET /stats (fetches updated statistics)
+   * - State: Updates loading, error, stats, simulationRunning
+   * - UI: Shows loading state, progress message, success alert
+   */
   const runSimulation = async () => {
     // Prevent multiple concurrent simulations
+    // This ensures only one simulation runs at a time
     if (simulationRunning) {
       console.log('Simulation already running, ignoring click')
       return
