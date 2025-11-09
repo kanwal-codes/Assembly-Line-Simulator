@@ -115,9 +115,14 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     try:
-        conn = get_db_connection()
-        conn.close()
-        return {"status": "healthy", "database": "connected"}
+        db_file = Path(DB_PATH)
+        if db_file.exists():
+            conn = get_db_connection()
+            conn.close()
+            return {"status": "healthy", "database": "connected"}
+        else:
+            # Database doesn't exist yet, but API is running - this is OK
+            return {"status": "healthy", "database": "not_initialized", "message": "Database will be created on first simulation run"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
@@ -264,6 +269,17 @@ async def get_station_history(station_name: str, limit: int = 100):
 async def get_statistics():
     """Get simulation statistics"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            # Return empty stats if database doesn't exist yet
+            return SimulationStats(
+                total_orders=0,
+                completed_orders=0,
+                incomplete_orders=0,
+                completion_rate=0.0,
+                most_active_station=None
+            )
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         
