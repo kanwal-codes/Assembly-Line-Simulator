@@ -54,11 +54,9 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-        vcpkgGitCommit: '2024.01.12'
+        vcpkgGitCommitId: '2024.01.12'
         vcpkgJsonGlob: '[]'
-        vcpkgTriplet: 'x64-windows'
-        vcpkgArguments: 'sqlite3'
-        setupOnly: false
+        runVcpkgInstall: 'sqlite3:x64-windows'
       env:
         VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
 

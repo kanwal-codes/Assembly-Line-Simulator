@@ -120,8 +120,23 @@ target_include_directories(assembly_line_lib PUBLIC include)
 
 # Link SQLite3 - handle find_package, pkg-config, and find_library results
 if(SQLite3_FOUND)
-    # Found via find_package (vcpkg or system)
-    target_link_libraries(assembly_line_lib SQLite3::SQLite3)
+    # Found via find_package - check if modern target exists
+    if(TARGET SQLite3::SQLite3)
+        # Modern CMake target (vcpkg or newer find_package)
+        target_link_libraries(assembly_line_lib SQLite3::SQLite3)
+    elseif(TARGET SQLite3::sqlite3)
+        # Alternative target name
+        target_link_libraries(assembly_line_lib SQLite3::sqlite3)
+    elseif(SQLite3_LIBRARIES)
+        # Old-style variables
+        target_link_libraries(assembly_line_lib ${SQLite3_LIBRARIES})
+        if(SQLite3_INCLUDE_DIRS)
+            target_include_directories(assembly_line_lib PUBLIC ${SQLite3_INCLUDE_DIRS})
+        endif()
+    else()
+        # Fallback to library name
+        target_link_libraries(assembly_line_lib sqlite3)
+    endif()
 elseif(SQLITE3_FOUND)
     # Found via pkg-config
     target_link_libraries(assembly_line_lib ${SQLITE3_LIBRARIES})
