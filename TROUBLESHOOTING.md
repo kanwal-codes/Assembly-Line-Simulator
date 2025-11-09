@@ -1,103 +1,206 @@
-# Troubleshooting Guide
+# 🔧 Troubleshooting Guide
 
-## Issue: Frontend Shows "Loading" Forever
+## Issues Fixed During Development
 
-### ✅ FIXED: API Syntax Error
-- **Problem**: Syntax error in `api/main.py` line 103
-- **Solution**: Fixed string literal error
-- **Status**: ✅ API is now running
+### 1. Backend Health Check Failing
+**Problem**: Health check returned "unhealthy" when database didn't exist.
 
-### Current Status
+**Solution**: Updated health check to return "healthy" even when database is not initialized. Database is created automatically on first simulation run.
 
-**API Server**: ✅ Running on http://127.0.0.1:8000
-- Health: http://127.0.0.1:8000/health
-- Stats: http://127.0.0.1:8000/stats
+**Files Changed**: `api/main.py`
 
-**Frontend**: Check if running on port 3000
+---
 
-### Quick Fix Steps
+### 2. Endpoints Returning 500 Errors
+**Problem**: `/orders` and `/stations` endpoints returned 500 errors when database didn't exist.
 
-1. **Check API is running:**
+**Solution**: Added database existence check before querying. Endpoints now return empty arrays `[]` when database doesn't exist.
+
+**Files Changed**: `api/main.py`
+
+---
+
+### 3. CORS Errors
+**Problem**: Frontend couldn't connect to backend due to CORS policy.
+
+**Solution**: 
+- Configured CORS to allow all origins in production (`allow_origins=["*"]`)
+- Set `allow_credentials=False` when using wildcard origins
+- Works with any Vercel domain automatically
+
+**Files Changed**: `api/main.py`
+
+---
+
+### 4. WebSocket Connection Failed
+**Problem**: WebSocket URL conversion didn't handle `https` → `wss`.
+
+**Solution**: Updated URL conversion to properly handle both `http` → `ws` and `https` → `wss`.
+
+**Files Changed**: `frontend/src/components/Dashboard.tsx`
+
+---
+
+### 5. Vercel Build Failures
+**Problem**: TypeScript errors preventing Vercel deployment.
+
+**Issues Fixed**:
+- Missing `import.meta.env` type definitions
+- Unused imports causing errors
+- `NodeJS.Timeout` type not found
+- Unused variables
+
+**Solutions**:
+- Created `frontend/src/vite-env.d.ts` for environment variable types
+- Removed unused imports
+- Changed `NodeJS.Timeout` to `ReturnType<typeof setTimeout>`
+- Fixed unused variable warnings
+
+**Files Changed**: 
+- `frontend/src/vite-env.d.ts` (created)
+- `frontend/src/App.tsx`
+- `frontend/src/components/Dashboard.tsx`
+- `frontend/src/components/Statistics.tsx`
+- `frontend/tsconfig.json`
+
+---
+
+### 6. Windows CI Build Failures
+**Problem**: SQLite3 library not found on Windows CI.
+
+**Solution**: 
+- Disabled Windows builds (complexity not worth it)
+- Production uses Docker which includes SQLite3
+- CI now focuses on Linux and macOS
+
+**Files Changed**: `.github/workflows/ci.yml`
+
+---
+
+### 7. Fly.io Deployment Workflow Issues
+**Problem**: Deployment workflow failing due to missing app name and token handling.
+
+**Solution**:
+- Added app name to deploy command
+- Added graceful handling when `FLY_API_TOKEN` is not set
+- Added path filters to only deploy when backend files change
+
+**Files Changed**: `.github/workflows/fly-deploy.yml`
+
+---
+
+## Common Issues & Solutions
+
+### Backend Not Responding
+
+**Check Status**:
 ```bash
-curl http://127.0.0.1:8000/health
+fly status --app assembly-line-simulator
+fly logs --app assembly-line-simulator
 ```
 
-Should return: `{"status":"healthy","database":"connected"}`
-
-2. **If API is not running, start it:**
+**Restart**:
 ```bash
-cd api
-source venv/bin/activate
-uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+fly apps restart assembly-line-simulator
 ```
 
-3. **Check Frontend:**
-- Open browser console (F12)
-- Look for errors in Network tab
-- Check if requests to http://localhost:8000 are failing
+---
 
-4. **Common Issues:**
+### Frontend Can't Connect to Backend
 
-**CORS Error:**
-- The API has CORS enabled for localhost:3000
-- If using different port, update CORS in `api/main.py`
-
-**Connection Refused:**
-- API not running
-- Wrong port (should be 8000)
-- Firewall blocking connection
-
-**Database Not Found:**
-- Run simulation first: `./build/assembly_line data/Stations1.txt data/Stations2.txt data/CustomerOrders.txt data/AssemblyLine.txt`
-
-5. **Test API Directly:**
+**Check 1**: Verify backend is running
 ```bash
-# Health check
-curl http://127.0.0.1:8000/health
-
-# Get stats
-curl http://127.0.0.1:8000/stats
-
-# Get orders
-curl http://127.0.0.1:8000/orders
+curl https://assembly-line-simulator.fly.dev/health
 ```
 
-### Debug Frontend
+**Check 2**: Verify environment variable
+- Go to Vercel Dashboard → Settings → Environment Variables
+- Ensure `VITE_API_URL` is set to `https://assembly-line-simulator.fly.dev`
+- **Important**: Redeploy after adding/changing environment variables
 
-1. Open browser console
-2. Check for errors like:
-   - `Network Error`
-   - `CORS policy`
-   - `404 Not Found`
-3. In Network tab, check if requests to `/stats` or `/orders` are:
-   - Pending (waiting)
-   - Failed (red)
-   - 200 OK (green)
+**Check 3**: Check browser console
+- Open DevTools (F12)
+- Look for CORS errors or network failures
+- Check Network tab for failed requests
 
-### Restart Everything
+---
 
+### Database Not Created
+
+**Issue**: Database shows "not_initialized" in health check.
+
+**Solution**: This is normal! Database is created automatically when you run the first simulation. Just click "Run Simulation" in the frontend.
+
+---
+
+### Build Failures
+
+**Vercel Build Fails**:
+- Check build logs in Vercel dashboard
+- Verify `frontend/package.json` has all dependencies
+- Ensure `frontend/vercel.json` exists
+
+**Local Build Fails**:
 ```bash
-# Stop all processes
+# Clean and rebuild
+make clean
+make release
+```
+
+---
+
+### CORS Errors
+
+**Error**: `Access to fetch blocked by CORS policy`
+
+**Solution**: 
+- Backend is configured to allow all origins
+- If error persists, check browser console for exact error message
+- Verify backend is returning CORS headers:
+```bash
+curl -v -H "Origin: https://test.vercel.app" \
+     https://assembly-line-simulator.fly.dev/stats
+```
+
+---
+
+## Quick Fixes
+
+### Reset Everything
+```bash
+# Stop all services
 pkill -f uvicorn
 pkill -f vite
 
-# Start API
-cd api
-source venv/bin/activate
-uvicorn main:app --host 127.0.0.1 --port 8000 --reload &
+# Clean build
+make clean
+make release
 
-# Start Frontend (in another terminal)
-cd frontend
-npm run dev
+# Restart API
+cd api && source venv/bin/activate && python main.py
+
+# Restart frontend (new terminal)
+cd frontend && npm run dev
 ```
 
-### Verify Database
+### Test Connection
+Use the test file: `test-connection.html` - open in browser to test all endpoints.
 
-```bash
-# Check if database exists
-ls -la database/assembly_line.db
+---
 
-# If missing, run simulation
-./build/assembly_line data/Stations1.txt data/Stations2.txt data/CustomerOrders.txt data/AssemblyLine.txt
-```
+## Still Having Issues?
 
+1. Check logs:
+   - Backend: `fly logs --app assembly-line-simulator`
+   - Frontend: Vercel deployment logs
+
+2. Verify configuration:
+   - Backend URL is correct
+   - Environment variables are set
+   - CORS is configured
+
+3. Test endpoints directly:
+   ```bash
+   curl https://assembly-line-simulator.fly.dev/health
+   curl https://assembly-line-simulator.fly.dev/stats
+   ```
