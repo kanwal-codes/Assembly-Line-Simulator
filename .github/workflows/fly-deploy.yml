@@ -26,6 +26,15 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
       
       - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only --app assembly-line-simulator
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "⚠️  FLY_API_TOKEN secret not set. Skipping deployment."
+            echo "To enable auto-deployment, add FLY_API_TOKEN to GitHub secrets:"
+            echo "1. Go to: Settings > Secrets and variables > Actions"
+            echo "2. Add secret: FLY_API_TOKEN"
+            echo "3. Get token: fly auth token"
+            exit 0
+          fi
+          flyctl deploy --remote-only --app assembly-line-simulator
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
