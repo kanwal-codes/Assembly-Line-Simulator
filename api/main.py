@@ -24,15 +24,31 @@ app = FastAPI(
 )
 
 # CORS middleware for frontend
-# Allow origins from environment variable or default to localhost for development
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# In production (Fly.io), allow all origins for Vercel compatibility
+# In development, use specific localhost origins
+# Check if CORS_ORIGINS is explicitly set, otherwise allow all in production
+cors_origins_env = os.getenv("CORS_ORIGINS", "").strip()
+
+if cors_origins_env:
+    # Use explicitly set CORS origins
+    cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # No CORS_ORIGINS set - allow all origins (works for Vercel dynamic domains)
+    # This is safe in production and convenient for development
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,  # Can't use credentials with allow_origins=["*"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Database path - use absolute path from project root
 _project_root = Path(__file__).parent.parent
@@ -377,5 +393,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
