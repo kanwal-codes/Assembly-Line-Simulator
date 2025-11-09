@@ -146,6 +146,10 @@ async def health_check():
 async def get_orders(limit: int = 100):
     """Get order history"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -155,6 +159,8 @@ async def get_orders(limit: int = 100):
         rows = cursor.fetchall()
         conn.close()
         return [row_to_order(row) for row in rows]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -163,6 +169,10 @@ async def get_orders(limit: int = 100):
 async def get_completed_orders(limit: int = 100):
     """Get completed orders"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -172,6 +182,8 @@ async def get_completed_orders(limit: int = 100):
         rows = cursor.fetchall()
         conn.close()
         return [row_to_order(row) for row in rows]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -179,6 +191,10 @@ async def get_completed_orders(limit: int = 100):
 async def get_incomplete_orders(limit: int = 100):
     """Get incomplete orders"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -188,6 +204,8 @@ async def get_incomplete_orders(limit: int = 100):
         rows = cursor.fetchall()
         conn.close()
         return [row_to_order(row) for row in rows]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -195,6 +213,10 @@ async def get_incomplete_orders(limit: int = 100):
 async def get_orders_by_customer(customer_name: str):
     """Get orders for a specific customer"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -204,6 +226,8 @@ async def get_orders_by_customer(customer_name: str):
         rows = cursor.fetchall()
         conn.close()
         return [row_to_order(row) for row in rows]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -229,6 +253,10 @@ async def get_order(order_id: str):
 async def get_stations(limit: int = 100):
     """Get station history"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -252,6 +280,8 @@ async def get_stations(limit: int = 100):
             )
             for row in rows
         ]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -259,6 +289,10 @@ async def get_stations(limit: int = 100):
 async def get_station_history(station_name: str, limit: int = 100):
     """Get history for a specific station"""
     try:
+        db_file = Path(DB_PATH)
+        if not db_file.exists():
+            return []  # Return empty list if database doesn't exist yet
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -276,6 +310,8 @@ async def get_station_history(station_name: str, limit: int = 100):
             )
             for row in rows
         ]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
