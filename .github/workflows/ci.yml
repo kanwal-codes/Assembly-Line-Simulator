@@ -45,14 +45,6 @@ jobs:
       run: |
         brew install cmake ninja sqlite
 
-    - name: Setup Windows (Visual Studio)
-      if: runner.os == 'Windows'
-      uses: microsoft/setup-msbuild@v1.3
-
-    # Note: Windows builds may fail if SQLite3 is not available
-    # CMake will try to link with 'sqlite3' library name
-    # For production, we use Docker which includes SQLite3
-
     # Step 3: Configure the build
     - name: Configure CMake
       run: |

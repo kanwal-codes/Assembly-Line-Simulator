@@ -24,13 +24,12 @@ app = FastAPI(
 )
 
 # CORS middleware for frontend
-# In production (Fly.io), allow all origins for Vercel compatibility
-# In development, use specific localhost origins
-# Check if CORS_ORIGINS is explicitly set, otherwise allow all in production
+# Allow all origins for Vercel compatibility (Vercel uses dynamic domains)
+# When using allow_origins=["*"], credentials must be False
 cors_origins_env = os.getenv("CORS_ORIGINS", "").strip()
 
 if cors_origins_env:
-    # Use explicitly set CORS origins
+    # Use explicitly set CORS origins (allows credentials)
     cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
     app.add_middleware(
         CORSMiddleware,
@@ -41,11 +40,11 @@ if cors_origins_env:
     )
 else:
     # No CORS_ORIGINS set - allow all origins (works for Vercel dynamic domains)
-    # This is safe in production and convenient for development
+    # IMPORTANT: When using ["*"], credentials MUST be False
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=False,  # Can't use credentials with allow_origins=["*"]
+        allow_credentials=False,  # Required when using allow_origins=["*"]
         allow_methods=["*"],
         allow_headers=["*"],
     )

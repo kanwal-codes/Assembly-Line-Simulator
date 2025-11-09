@@ -39,7 +39,9 @@ function Dashboard() {
     // WebSocket connection for real-time updates
     let ws: WebSocket | null = null
     try {
-      const wsUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace('http', 'ws')
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      // Convert http/https to ws/wss for WebSocket
+      const wsUrl = apiUrl.replace(/^http/, 'ws').replace(/^https/, 'wss')
       ws = new WebSocket(`${wsUrl}/ws`)
       
       ws.onopen = () => {
